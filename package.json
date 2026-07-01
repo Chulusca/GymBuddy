@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/bot.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/bot.ts"
+    "build": "prisma generate && tsc",
+    "start": "prisma migrate deploy && node dist/bot.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/bot.ts",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
