@@ -104,6 +104,26 @@ export function parseRoutineReorderInput(input: string): { day: string | null; e
     };
 }
 
+export function swapExercisePositions<T extends { order: number; name: string; sets: number; reps: number }>(exercises: T[], firstIndex: number, secondIndex: number) {
+    const updatedExercises = exercises.map((exercise) => ({ ...exercise }));
+
+    if (firstIndex === secondIndex || firstIndex < 0 || secondIndex < 0 || firstIndex >= updatedExercises.length || secondIndex >= updatedExercises.length) {
+        return updatedExercises.map((exercise, index) => ({ ...exercise, order: index + 1 }));
+    }
+
+    const firstExercise = updatedExercises[firstIndex];
+    const secondExercise = updatedExercises[secondIndex];
+
+    if (!firstExercise || !secondExercise) {
+        return updatedExercises.map((exercise, index) => ({ ...exercise, order: index + 1 }));
+    }
+
+    updatedExercises[firstIndex] = secondExercise;
+    updatedExercises[secondIndex] = firstExercise;
+
+    return updatedExercises.map((exercise, index) => ({ ...exercise, order: index + 1 }));
+}
+
 export function parseCsvRoutineInput(input: string) {
     const routines: Array<{ day: string; exercises: Array<{ order: number; name: string; sets: number; reps: number }> }> = [];
     const grouped = new Map<string, Array<{ order: number; name: string; sets: number; reps: number }>>();

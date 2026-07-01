@@ -1,6 +1,8 @@
 import { prisma } from '../db/client';
 
-export async function createRoutine(userId: number, days: string[], exercises: { order: number, name: string, sets: number, reps: number }[]) {
+type RoutineExercise = { order: number, name: string, sets: number, reps: number };
+
+export async function createRoutine(userId: number, days: string[], exercises: RoutineExercise[]) {
     try {
         const id = BigInt(userId);
         const createdRoutines = [];
@@ -26,6 +28,42 @@ export async function createRoutine(userId: number, days: string[], exercises: {
         return createdRoutines;
     } catch (error) {
         console.error("Error creando rutina:", error);
+        throw error;
+    }
+}
+
+export async function updateRoutineExercises(userId: number, day: string, exercises: RoutineExercise[]) {
+    try {
+        const id = BigInt(userId);
+        const routine = await prisma.routine.findFirst({
+            where: { userId: id, day },
+            select: { id: true }
+        });
+
+        if (!routine) {
+            return null;
+        }
+
+        await prisma.exercise.deleteMany({
+            where: { routineId: routine.id }
+        });
+
+        await prisma.exercise.createMany({
+            data: exercises.map((exercise, index) => ({
+                routineId: routine.id,
+                name: exercise.name,
+                order: index + 1,
+                sets: exercise.sets,
+                reps: exercise.reps
+            }))
+        });
+
+        return prisma.routine.findUnique({
+            where: { id: routine.id },
+            include: { exercises: true }
+        });
+    } catch (error) {
+        console.error("Error actualizando ejercicios de la rutina:", error);
         throw error;
     }
 }

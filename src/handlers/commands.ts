@@ -1,7 +1,7 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { registerUser } from "../services/userService";
-import { parseRoutineInput, parseExercises, parseCsvRoutineInput, parseRoutineReorderInput } from "../utils/parsers";
-import { createRoutine, deleteAllRoutinesForUser } from "../services/routineService";
+import { parseRoutineInput, parseExercises, parseCsvRoutineInput, parseRoutineReorderInput, swapExercisePositions } from "../utils/parsers";
+import { createRoutine, deleteAllRoutinesForUser, updateRoutineExercises } from "../services/routineService";
 import { getUserRoutines, getRoutineByDay, getRecentWorkouts } from "./workoutFlow";
 import { buildDeleteConfirmationKeyboard, buildGuidedReply, buildHelpKeyboard, buildMainMenuKeyboard, buildQuickActionsKeyboard } from "./workoutUi";
 import { WorkoutSessionController } from "./workoutSessionFlow";
@@ -14,6 +14,7 @@ type TelegramUser = { id: number; username?: string; first_name?: string };
 
 const pendingDeleteConfirmations = new Map<string, number>();
 const workoutSessionFlow = new WorkoutSessionController(getUserRoutines);
+const reorderSessions = new Map<string, { step: "await_day" | "await_first_pick" | "await_second_pick"; day?: string; exercises?: Exercise[]; firstIndex?: number }>();
 
 function formatRoutineReply(prefix: string, routines: RoutineEntry[]) {
     const daysString = routines.map((routine) => routine.day).join(" y ");
@@ -138,38 +139,88 @@ async function handleTextRoutine(ctx: any, user: TelegramUser, message: string) 
 }
 
 async function handleReorderRoutine(ctx: any, user: TelegramUser, message: string) {
-    const { day, exercisesText } = parseRoutineReorderInput(message);
+    const { day } = parseRoutineReorderInput(message);
 
-    if (!day) {
-        await ctx.reply("❌ No entendí el día. Usá algo como: /reordenar Lunes Sentadilla 4x12, Prensa 3x10");
+    if (day) {
+        try {
+            await registerUser(user.id, user.username, user.first_name);
+            const routine = await getRoutineByDay(user.id, day);
+            if (!routine) {
+                await ctx.reply(`No encontré una rutina para ${day}.`);
+                return;
+            }
+
+            if (routine.exercises.length < 2) {
+                await ctx.reply(`La rutina de ${day} tiene menos de 2 ejercicios para intercambiar.`);
+                return;
+            }
+
+            const sessionKey = `${ctx.chat?.id ?? user.id}:${user.id}`;
+            reorderSessions.set(sessionKey, {
+                step: "await_first_pick",
+                day,
+                exercises: routine.exercises.map((exercise: Exercise) => ({ ...exercise }))
+            });
+
+            const exerciseList = routine.exercises.map((exercise: Exercise, index: number) => `${index + 1}. ${exercise.name} (${exercise.sets}x${exercise.reps})`).join("\n");
+            await ctx.reply(`📋 Rutina de ${day}\n\nElegí el primer ejercicio que querés mover escribiendo su número:\n\n${exerciseList}`);
+            return;
+        } catch (error) {
+            console.error(error);
+            await ctx.reply("Hubo un error al preparar el reordenamiento.");
+            return;
+        }
+    }
+
+    const sessionKey = `${ctx.chat?.id ?? user.id}:${user.id}`;
+    const session = reorderSessions.get(sessionKey);
+
+    if (!session) {
+        await ctx.reply("❌ Primero elegí un día. Usá: /reordenar Lunes");
         return;
     }
 
-    const parsedExercises = parseExercises(exercisesText);
-    if (parsedExercises.length === 0) {
-        await ctx.reply("❌ No entendí los ejercicios. Formato esperado: 'Sentadilla 4x12, Prensa 3x10'.");
-        return;
-    }
-
-    try {
-        await registerUser(user.id, user.username, user.first_name);
-        const routine = await getRoutineByDay(user.id, day);
-        if (!routine) {
-            await ctx.reply(`No encontré una rutina para ${day}.`);
+    if (session.step === "await_first_pick") {
+        const selectedIndex = Number.parseInt(message.trim(), 10) - 1;
+        if (Number.isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= (session.exercises?.length ?? 0)) {
+            await ctx.reply("❌ Elegí un número válido de la lista.");
             return;
         }
 
-        const reorderedExercises = parsedExercises.map((exercise, index) => ({
-            ...exercise,
-            order: index + 1
-        }));
+        reorderSessions.set(sessionKey, {
+            ...session,
+            step: "await_second_pick",
+            firstIndex: selectedIndex
+        });
 
-        await createRoutine(user.id, [day], reorderedExercises);
-        await ctx.reply(`✅ Reordené los ejercicios de ${day}.\n\n${reorderedExercises.map((exercise, index) => `${index + 1}. ${exercise.name}: ${exercise.sets}x${exercise.reps}`).join("\n")}`);
-    } catch (error) {
-        console.error(error);
-        await ctx.reply("Hubo un error al reordenar tu rutina.");
+        const exerciseList = (session.exercises ?? []).map((exercise: Exercise, index: number) => `${index + 1}. ${exercise.name} (${exercise.sets}x${exercise.reps})`).join("\n");
+        await ctx.reply(`✅ Primer ejercicio seleccionado: ${(session.exercises ?? [])[selectedIndex]?.name}\n\nAhora elegí el segundo ejercicio que querés intercambiar escribiendo su número:\n\n${exerciseList}`);
+        return;
     }
+
+    if (session.step === "await_second_pick") {
+        const selectedIndex = Number.parseInt(message.trim(), 10) - 1;
+        if (Number.isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= (session.exercises?.length ?? 0)) {
+            await ctx.reply("❌ Elegí un número válido de la lista.");
+            return;
+        }
+
+        const firstIndex = session.firstIndex;
+        if (firstIndex === undefined || firstIndex === selectedIndex) {
+            await ctx.reply("❌ Elegí un ejercicio distinto para intercambiar.");
+            return;
+        }
+
+        const updatedExercises = swapExercisePositions(session.exercises ?? [], firstIndex, selectedIndex);
+        await updateRoutineExercises(user.id, session.day ?? "", updatedExercises);
+        reorderSessions.delete(sessionKey);
+
+        const summary = updatedExercises.map((exercise, index) => `${index + 1}. ${exercise.name} (${exercise.sets}x${exercise.reps})`).join("\n");
+        await ctx.reply(`✅ Orden actualizado para ${session.day}.\n\n${summary}`);
+        return;
+    }
+
+    await ctx.reply("❌ El flujo de reordenamiento terminó. Volvé a usar /reordenar para empezar otra vez.");
 }
 
 async function handleCsvRoutine(ctx: any, user: TelegramUser, document: any) {
@@ -412,7 +463,7 @@ export function setupCommands(bot: Bot) {
         if (!user) return;
 
         if (!message) {
-            await ctx.reply("Formato esperado: /reordenar Lunes Sentadilla 4x12, Prensa 3x10");
+            await ctx.reply("🛠️ Para reordenar, empezá con el día. Por ejemplo: /reordenar Lunes");
             return;
         }
 
