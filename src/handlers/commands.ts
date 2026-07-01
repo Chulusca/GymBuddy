@@ -1,6 +1,6 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { registerUser } from "../services/userService";
-import { parseRoutineInput, parseExercises, parseCsvRoutineInput } from "../utils/parsers";
+import { parseRoutineInput, parseExercises, parseCsvRoutineInput, parseRoutineReorderInput } from "../utils/parsers";
 import { createRoutine, deleteAllRoutinesForUser } from "../services/routineService";
 import { getUserRoutines, getRoutineByDay, getRecentWorkouts } from "./workoutFlow";
 import { buildDeleteConfirmationKeyboard, buildGuidedReply, buildHelpKeyboard, buildMainMenuKeyboard, buildQuickActionsKeyboard } from "./workoutUi";
@@ -137,6 +137,41 @@ async function handleTextRoutine(ctx: any, user: TelegramUser, message: string) 
     }
 }
 
+async function handleReorderRoutine(ctx: any, user: TelegramUser, message: string) {
+    const { day, exercisesText } = parseRoutineReorderInput(message);
+
+    if (!day) {
+        await ctx.reply("❌ No entendí el día. Usá algo como: /reordenar Lunes Sentadilla 4x12, Prensa 3x10");
+        return;
+    }
+
+    const parsedExercises = parseExercises(exercisesText);
+    if (parsedExercises.length === 0) {
+        await ctx.reply("❌ No entendí los ejercicios. Formato esperado: 'Sentadilla 4x12, Prensa 3x10'.");
+        return;
+    }
+
+    try {
+        await registerUser(user.id, user.username, user.first_name);
+        const routine = await getRoutineByDay(user.id, day);
+        if (!routine) {
+            await ctx.reply(`No encontré una rutina para ${day}.`);
+            return;
+        }
+
+        const reorderedExercises = parsedExercises.map((exercise, index) => ({
+            ...exercise,
+            order: index + 1
+        }));
+
+        await createRoutine(user.id, [day], reorderedExercises);
+        await ctx.reply(`✅ Reordené los ejercicios de ${day}.\n\n${reorderedExercises.map((exercise, index) => `${index + 1}. ${exercise.name}: ${exercise.sets}x${exercise.reps}`).join("\n")}`);
+    } catch (error) {
+        console.error(error);
+        await ctx.reply("Hubo un error al reordenar tu rutina.");
+    }
+}
+
 async function handleCsvRoutine(ctx: any, user: TelegramUser, document: any) {
     try {
         const fileId = document.file_id;
@@ -184,11 +219,11 @@ async function handleStartCommand(ctx: any) {
             : `¡Qué onda, ${user.first_name}! Tu perfil ya está activo.\n\nEstas son las cosas que podés hacer con GymBuddy:`;
 
         const introBody = [
-            "• /rutina: crear o cargar rutinas",
+            "• /rutina: crear o actualizar rutinas",
+            "• /misrutinas: ver tus rutinas por día",
             "• /entrenar: registrar un entrenamiento",
-            "• /verRutinas: ver tus rutinas por día",
-            "• /entrenamientos: ver tu historial",
-            "• /borrarRutinas: borrar todo con confirmación"
+            "• /historial: ver tu historial",
+            "• /borrar: borrar todo con confirmación"
         ].join("\n");
 
         const welcomeReply = buildGuidedReply(
@@ -327,22 +362,35 @@ async function handleSlashCommand(ctx: any, text: string) {
             await handleStartCommand(ctx);
             return;
         case "rutina":
+        case "crear":
             await handleRutinaCommand(ctx);
             return;
         case "entrenar":
             await handleEntrenarCommand(ctx);
             return;
         case "help":
+        case "ayuda":
             await handleHelpCommand(ctx);
             return;
         case "verrutinas":
+        case "misrutinas":
             await handleVerRutinasCommand(ctx);
             return;
         case "entrenamientos":
+        case "historial":
             await handleEntrenamientosCommand(ctx);
             return;
         case "borrarrutinas":
+        case "borrar":
             await handleBorrarRutinasCommand(ctx);
+            return;
+        case "reordenar":
+            {
+                const user = ctx.from;
+                const message = text.replace(/^\/reordenar\s*/i, "");
+                if (!user) return;
+                await handleReorderRoutine(ctx, user, message);
+            }
             return;
         default:
             await ctx.reply("Perdón, no te entendí. 😅\n\nPodés usar alguno de estos comandos:\n• /rutina\n• /entrenar\n• /verRutinas\n• /entrenamientos\n• /help\n\nSi querés, te puedo ayudar paso a paso.");
@@ -351,12 +399,25 @@ async function handleSlashCommand(ctx: any, text: string) {
 
 export function setupCommands(bot: Bot) {
     bot.command("start", handleStartCommand);
-    bot.command("rutina", handleRutinaCommand);
+    bot.command(["rutina", "crear"], handleRutinaCommand);
     bot.command("entrenar", handleEntrenarCommand);
-    bot.command("help", handleHelpCommand);
-    bot.command("verRutinas", handleVerRutinasCommand);
-    bot.command("entrenamientos", handleEntrenamientosCommand);
-    bot.command("borrarRutinas", handleBorrarRutinasCommand);
+    bot.command(["help", "ayuda"], handleHelpCommand);
+    bot.command(["verRutinas", "misrutinas"], handleVerRutinasCommand);
+    bot.command(["entrenamientos", "historial"], handleEntrenamientosCommand);
+    bot.command(["borrarRutinas", "borrar"], handleBorrarRutinasCommand);
+
+    bot.command("reordenar", async (ctx) => {
+        const user = ctx.from;
+        const message = typeof ctx.match === "string" ? ctx.match : "";
+        if (!user) return;
+
+        if (!message) {
+            await ctx.reply("Formato esperado: /reordenar Lunes Sentadilla 4x12, Prensa 3x10");
+            return;
+        }
+
+        await handleReorderRoutine(ctx, user, message);
+    });
 
     bot.on("message:text", async (ctx) => {
         const user = ctx.from;

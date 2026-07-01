@@ -89,6 +89,21 @@ export function parseExercises(input: string) {
     return exercises;
 }
 
+export function parseRoutineReorderInput(input: string): { day: string | null; exercisesText: string } {
+    const normalizedInput = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+    const match = normalizedInput.match(/^(lunes|martes|miercoles|jueves|viernes|sabado|domingo)\s+(.*)$/i);
+
+    if (!match) {
+        return { day: null, exercisesText: normalizedInput };
+    }
+
+    const day = normalizeDayName(match[1] ?? "");
+    return {
+        day,
+        exercisesText: match[2]?.trim() ?? ""
+    };
+}
+
 export function parseCsvRoutineInput(input: string) {
     const routines: Array<{ day: string; exercises: Array<{ order: number; name: string; sets: number; reps: number }> }> = [];
     const grouped = new Map<string, Array<{ order: number; name: string; sets: number; reps: number }>>();

@@ -15,12 +15,12 @@ setupCommands(bot);
 
 void bot.api.setMyCommands([
     { command: "start", description: "Iniciar y ver la bienvenida" },
-    { command: "rutina", description: "Crear o cargar rutinas" },
+    { command: "rutina", description: "Crear o actualizar una rutina" },
+    { command: "misrutinas", description: "Ver tus rutinas guardadas" },
     { command: "entrenar", description: "Registrar un entrenamiento" },
-    { command: "verRutinas", description: "Ver tus rutinas guardadas" },
-    { command: "entrenamientos", description: "Ver tu historial de entrenamientos" },
-    { command: "help", description: "Mostrar ayuda" },
-    { command: "borrarRutinas", description: "Borrar todas tus rutinas" }
+    { command: "historial", description: "Ver tu historial de entrenamientos" },
+    { command: "ayuda", description: "Mostrar ayuda rápida" },
+    { command: "borrar", description: "Borrar tus rutinas" }
 ]).catch((error) => console.error("No se pudieron registrar los comandos del bot:", error));
 
 bot.catch((err) => console.error("Error en el bot:", err));
