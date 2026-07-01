@@ -1,15 +1,14 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
-# 1. Instalar dependencias
+# 1. Copiar archivos de dependencias y Prisma
 COPY package*.json ./
-RUN npm install
-
-# 2. Copiar Prisma y su configuración nueva
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
-RUN npx prisma generate
+
+# 2. Instalar dependencias (el postinstall de Prisma puede generar el cliente)
+RUN npm install
 
 # 3. Copiar el código y compilar TypeScript
 COPY tsconfig.json ./

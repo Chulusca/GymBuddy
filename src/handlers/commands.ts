@@ -173,11 +173,11 @@ async function handleCsvRoutine(ctx: any, user: TelegramUser, document: any) {
     }
 }
 
-export function setupCommands(bot: Bot) {
-    bot.command("start", async (ctx) => {
-        const user = ctx.from;
-        if (!user) return;
+async function handleStartCommand(ctx: any) {
+    const user = ctx.from;
+    if (!user) return;
 
+    try {
         const isNew = await registerUser(user.id, user.username, user.first_name);
         const welcomeText = isNew
             ? `¡Bienvenido a GymBuddy, ${user.first_name}! 🏋️‍♂️\n\nEstoy acá para ayudarte a organizar tus rutinas, registrar tus entrenamientos y ver tu progreso.`
@@ -199,14 +199,19 @@ export function setupCommands(bot: Bot) {
         );
 
         await ctx.reply(welcomeReply.text, { reply_markup: welcomeReply.reply_markup ?? buildMainMenuKeyboard() });
-    });
+    } catch (error) {
+        console.error("Error al procesar /start:", error);
+        await ctx.reply("Hubo un problema al iniciar tu sesión. Intentá de nuevo en un momento.");
+    }
+}
 
-    bot.command("rutina", async (ctx) => {
-        const user = ctx.from;
-        const message = typeof ctx.match === "string" ? ctx.match : "";
+async function handleRutinaCommand(ctx: any) {
+    const user = ctx.from;
+    const message = typeof ctx.match === "string" ? ctx.match : "";
 
-        if (!user) return;
+    if (!user) return;
 
+    try {
         const document = ctx.message?.document;
         if (document) {
             await handleCsvRoutine(ctx, user, document);
@@ -219,32 +224,42 @@ export function setupCommands(bot: Bot) {
         }
 
         await handleTextRoutine(ctx, user, message);
-    });
+    } catch (error) {
+        console.error("Error al procesar /rutina:", error);
+        await ctx.reply("No pude procesar tu rutina en este momento. Intentá de nuevo más tarde.");
+    }
+}
 
-    bot.command("entrenar", async (ctx) => {
-        const user = ctx.from;
-        if (!user) return;
+async function handleEntrenarCommand(ctx: any) {
+    const user = ctx.from;
+    if (!user) return;
 
+    try {
         await workoutSessionFlow.startWorkoutSelection(ctx, user);
-    });
+    } catch (error) {
+        console.error("Error al procesar /entrenar:", error);
+        await ctx.reply("No pude iniciar el flujo de entrenamiento. Intentá de nuevo más tarde.");
+    }
+}
 
-    bot.command("help", async (ctx) => {
-        const keyboard = buildHelpKeyboard();
+async function handleHelpCommand(ctx: any) {
+    const keyboard = buildHelpKeyboard();
 
-        const helpReply = buildGuidedReply(
-            "Guía rápida de GymBuddy",
-            "Hola, soy tu GymBuddy 🤖. Te ayudo a crear rutinas, registrar entrenamientos y ver tu progreso.\n\nPara empezar, te recomiendo este orden:\n1. /rutina para crear tu rutina\n2. /entrenar para registrar tu primer entrenamiento\n3. /entrenamientos para ver tu progreso",
-            "Elegí una opción de abajo para ir directo a la ayuda que necesitás.",
-            keyboard
-        );
+    const helpReply = buildGuidedReply(
+        "Guía rápida de GymBuddy",
+        "Hola, soy tu GymBuddy 🤖. Te ayudo a crear rutinas, registrar entrenamientos y ver tu progreso.\n\nPara empezar, te recomiendo este orden:\n1. /rutina para crear tu rutina\n2. /entrenar para registrar tu primer entrenamiento\n3. /entrenamientos para ver tu progreso",
+        "Elegí una opción de abajo para ir directo a la ayuda que necesitás.",
+        keyboard
+    );
 
-        await ctx.reply(helpReply.text, { reply_markup: helpReply.reply_markup ?? keyboard });
-    });
+    await ctx.reply(helpReply.text, { reply_markup: helpReply.reply_markup ?? keyboard });
+}
 
-    bot.command("verRutinas", async (ctx) => {
-        const user = ctx.from;
-        if (!user) return;
+async function handleVerRutinasCommand(ctx: any) {
+    const user = ctx.from;
+    if (!user) return;
 
+    try {
         const routines = await getUserRoutines(user.id);
         if (routines.length === 0) {
             await ctx.reply("No tenés rutinas guardadas todavía.");
@@ -259,12 +274,17 @@ export function setupCommands(bot: Bot) {
         });
 
         await ctx.reply("Elegí un día para ver la rutina guardada:", { reply_markup: keyboard });
-    });
+    } catch (error) {
+        console.error("Error al procesar /verRutinas:", error);
+        await ctx.reply("No pude cargar tus rutinas en este momento. Intentá de nuevo más tarde.");
+    }
+}
 
-    bot.command("entrenamientos", async (ctx) => {
-        const user = ctx.from;
-        if (!user) return;
+async function handleEntrenamientosCommand(ctx: any) {
+    const user = ctx.from;
+    if (!user) return;
 
+    try {
         const workouts = await getRecentWorkouts(user.id, 10);
         const historyReply = buildGuidedReply(
             "Historial de entrenamientos",
@@ -273,12 +293,17 @@ export function setupCommands(bot: Bot) {
             buildQuickActionsKeyboard()
         );
         await ctx.reply(historyReply.text, { reply_markup: historyReply.reply_markup ?? buildQuickActionsKeyboard() });
-    });
+    } catch (error) {
+        console.error("Error al procesar /entrenamientos:", error);
+        await ctx.reply("No pude cargar tu historial en este momento. Intentá de nuevo más tarde.");
+    }
+}
 
-    bot.command("borrarRutinas", async (ctx) => {
-        const user = ctx.from;
-        if (!user) return;
+async function handleBorrarRutinasCommand(ctx: any) {
+    const user = ctx.from;
+    if (!user) return;
 
+    try {
         const key = `${ctx.chat?.id ?? user.id}:${user.id}`;
         pendingDeleteConfirmations.set(key, user.id);
 
@@ -288,7 +313,50 @@ export function setupCommands(bot: Bot) {
             "⚠️ Esto borrará todas tus rutinas guardadas. ¿Querés confirmar?",
             { reply_markup: keyboard }
         );
-    });
+    } catch (error) {
+        console.error("Error al procesar /borrarRutinas:", error);
+        await ctx.reply("No pude preparar la confirmación para borrar tus rutinas. Intentá de nuevo más tarde.");
+    }
+}
+
+async function handleSlashCommand(ctx: any, text: string) {
+    const command = text.split(/\s+/)[0]?.slice(1).toLowerCase() ?? "";
+
+    switch (command) {
+        case "start":
+            await handleStartCommand(ctx);
+            return;
+        case "rutina":
+            await handleRutinaCommand(ctx);
+            return;
+        case "entrenar":
+            await handleEntrenarCommand(ctx);
+            return;
+        case "help":
+            await handleHelpCommand(ctx);
+            return;
+        case "verrutinas":
+            await handleVerRutinasCommand(ctx);
+            return;
+        case "entrenamientos":
+            await handleEntrenamientosCommand(ctx);
+            return;
+        case "borrarrutinas":
+            await handleBorrarRutinasCommand(ctx);
+            return;
+        default:
+            await ctx.reply("Perdón, no te entendí. 😅\n\nPodés usar alguno de estos comandos:\n• /rutina\n• /entrenar\n• /verRutinas\n• /entrenamientos\n• /help\n\nSi querés, te puedo ayudar paso a paso.");
+    }
+}
+
+export function setupCommands(bot: Bot) {
+    bot.command("start", handleStartCommand);
+    bot.command("rutina", handleRutinaCommand);
+    bot.command("entrenar", handleEntrenarCommand);
+    bot.command("help", handleHelpCommand);
+    bot.command("verRutinas", handleVerRutinasCommand);
+    bot.command("entrenamientos", handleEntrenamientosCommand);
+    bot.command("borrarRutinas", handleBorrarRutinasCommand);
 
     bot.on("message:text", async (ctx) => {
         const user = ctx.from;
@@ -304,6 +372,7 @@ export function setupCommands(bot: Bot) {
         }
 
         if (text.startsWith("/")) {
+            await handleSlashCommand(ctx, text);
             return;
         }
 

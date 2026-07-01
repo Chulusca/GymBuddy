@@ -13,6 +13,16 @@ const bot = new Bot(token);
 // Inyectamos todos los comandos desde el handler
 setupCommands(bot);
 
+void bot.api.setMyCommands([
+    { command: "start", description: "Iniciar y ver la bienvenida" },
+    { command: "rutina", description: "Crear o cargar rutinas" },
+    { command: "entrenar", description: "Registrar un entrenamiento" },
+    { command: "verRutinas", description: "Ver tus rutinas guardadas" },
+    { command: "entrenamientos", description: "Ver tu historial de entrenamientos" },
+    { command: "help", description: "Mostrar ayuda" },
+    { command: "borrarRutinas", description: "Borrar todas tus rutinas" }
+]).catch((error) => console.error("No se pudieron registrar los comandos del bot:", error));
+
 bot.catch((err) => console.error("Error en el bot:", err));
 
 bot.start();
