@@ -2,15 +2,30 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
-const connectionString = process.env.DATABASE_URL;
+function buildConnectionConfig() {
+    const connectionString = process.env.DATABASE_URL;
 
-if (!connectionString) {
-    throw new Error("Falta definir DATABASE_URL en el archivo .env");
+    if (!connectionString) {
+        throw new Error("Falta definir DATABASE_URL en el archivo .env");
+    }
+
+    const parsedUrl = new URL(connectionString);
+    const ssl = parsedUrl.hostname.includes('railway') || parsedUrl.hostname.includes('postgres')
+        ? { rejectUnauthorized: false }
+        : undefined;
+
+    return {
+        connectionString,
+        ssl,
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+    };
 }
 
-// Inicializamos el driver nativo de Postgres
-const pool = new Pool({ connectionString });
+const config = buildConnectionConfig();
+
+const pool = new Pool(config);
 const adapter = new PrismaPg(pool);
 
-// Exportamos Prisma ya configurado y listo para usar
 export const prisma = new PrismaClient({ adapter });
