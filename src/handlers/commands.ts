@@ -393,7 +393,7 @@ async function handleSlashCommand(ctx: any, text: string) {
             }
             return;
         default:
-            await ctx.reply("Perdón, no te entendí. 😅\n\nPodés usar alguno de estos comandos:\n• /rutina\n• /entrenar\n• /verRutinas\n• /entrenamientos\n• /help\n\nSi querés, te puedo ayudar paso a paso.");
+            await ctx.reply("Perdón, no te entendí. 😅\n\nPodés usar alguno de estos comandos:\n• /rutina o /crear\n• /misrutinas\n• /entrenar\n• /historial\n• /ayuda\n• /borrar\n\nSi querés, te puedo ayudar paso a paso.");
     }
 }
 
