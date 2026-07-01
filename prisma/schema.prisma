@@ -1,0 +1,86 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Usuarios del bot
+model User {
+  id        BigInt       @id // Guardamos el ID de Telegram del usuario (es un número largo)
+  username  String?      // Nombre de usuario de Telegram (@alias)
+  firstName String?      // Nombre real en Telegram
+  createdAt DateTime     @default(now())
+  routines  Routine[]
+  workouts  WorkoutSession[]
+  logs      WorkoutLog[]
+}
+
+// 2. Rutinas agendadas (ej: Lunes -> Pecho/Tríceps)
+model Routine {
+  id        String     @id @default(uuid())
+  userId    BigInt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day       String     // "Lunes", "Martes", "Miercoles", etc.
+  exercises Exercise[]
+}
+
+// 3. Ejercicios fijos de cada rutina
+model Exercise {
+  id        String  @id @default(uuid())
+  routineId String
+  routine   Routine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  name      String  // Ej: "Press de Banca"
+  order     Int
+  sets      Int     // Series estimadas (ej: 4)
+  reps      Int     // Repeticiones estimadas (ej: 12)
+}
+
+model WorkoutSession {
+  id            String            @id @default(uuid())
+  userId        BigInt
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routineId     String?
+  routineDay    String?
+  startedAt     DateTime          @default(now())
+  completedAt   DateTime?
+  exercises     WorkoutExercise[]
+  logs          WorkoutLog[]
+}
+
+model WorkoutExercise {
+  id            String           @id @default(uuid())
+  workoutId     String
+  workout       WorkoutSession   @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  name          String
+  plannedSets   Int?
+  plannedReps   Int?
+  createdAt     DateTime         @default(now())
+  sets          WorkoutSet[]
+}
+
+model WorkoutSet {
+  id            String          @id @default(uuid())
+  workoutExerciseId String
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  reps          Int
+  weight        Float
+  createdAt     DateTime        @default(now())
+}
+
+// 4. Registro histórico de lo que el usuario entrena REALMENTE cada día
+model WorkoutLog {
+  id            String          @id @default(uuid())
+  userId        BigInt
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutId     String?
+  workout       WorkoutSession? @relation(fields: [workoutId], references: [id], onDelete: SetNull)
+  exercise      String
+  sets          Int
+  reps          Int
+  weight        Float
+  createdAt     DateTime        @default(now())
+  routineDay    String?
+  routineId     String?
+}

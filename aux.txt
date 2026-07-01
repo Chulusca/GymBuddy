@@ -1,0 +1,62 @@
+# Comandos útiles de GymBuddy
+
+Estos comandos sirven para levantar el entorno, ver logs del bot, sincronizar la base de datos y abrir Prisma Studio.
+
+## 1) Levantar el entorno completo
+```bash
+docker compose up -d --build
+```
+Explicación:
+- Levanta los servicios definidos en docker-compose.yaml.
+- Construye la imagen del bot si cambió el código o dependencias.
+- Inicia también la base de datos PostgreSQL en segundo plano.
+- El contenedor del bot se llama tg_bot_dev y el de la DB gymbuddy_db.
+
+## 2) Ver los logs del bot en tiempo real
+```bash
+docker logs -f tg_bot_dev
+```
+Explicación:
+- Muestra la salida del contenedor del bot en vivo.
+- Útil para debugging cuando el bot no responde o hay errores en ejecución.
+
+## 3) Sincronizar el esquema de Prisma con la base de datos
+```bash
+docker compose exec telegram-bot npx prisma db push
+```
+Explicación:
+- Aplica los cambios del esquema de Prisma a PostgreSQL.
+- Se usa después de modificar prisma/schema.prisma.
+- Es una forma rápida de actualizar la estructura de la DB sin crear migraciones manuales.
+
+## 4) Abrir Prisma Studio
+```bash
+npx prisma studio --url="postgresql://postgres:supersecretpassword@localhost:5432/gymbuddy?schema=public"
+```
+Explicación:
+- Abre una interfaz web para ver y editar los datos de la base de datos.
+- Muy útil para revisar usuarios, rutinas, ejercicios y logs de entrenamiento.
+
+## 5) Comandos del bot
+
+### Comandos de usuario
+- /start: registra al usuario y lo da de bienvenida.
+- /rutina: crea rutinas. Acepta texto tipo "Lunes Sentadilla 4x12, Prensa 3x10" o un archivo CSV con columnas Dia | Ejercicio | Sets | Reps.
+- /entrenar: inicia un flujo interactivo para registrar un entrenamiento desde una rutina seleccionada.
+- /help: muestra ayuda con botones para crear rutinas, borrar rutinas y ver ejemplos.
+- /borrarRutinas: elimina todas las rutinas del usuario con confirmación previa.
+- /verRutinas: permite ver las rutinas guardadas seleccionando el día.
+- /entrenamientos: muestra los entrenamientos recientes registrados.
+
+### Comportamiento del flujo de entrenamiento
+- Durante /entrenar, el bot pide que envíes una serie como "reps kg".
+- Se puede agregar otra serie o saltar el ejercicio con botones.
+- Al finalizar, guarda el entrenamiento completo con ejercicios y series registradas.
+- Al empezar un ejercicio, el bot también muestra el último peso y repeticiones usados para ese ejercicio.
+
+## Cómo funciona este proyecto
+- El bot está hecho con Grammy y se inicia desde src/bot.ts.
+- Al ejecutar /start, registra al usuario en la base de datos.
+- El comando /rutina permite guardar rutinas por día y ejercicios, usando Prisma para persistirlos.
+- La base de datos se gestiona con PostgreSQL y Prisma.
+- El proyecto usa Docker para correr tanto el bot como la base de datos de forma aislada.

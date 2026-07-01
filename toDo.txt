@@ -1,0 +1,43 @@
+# Lista de mejoras pendientes para GymBuddy
+
+## 2. Rutinas
+- Permitir editar rutinas ya creadas.
+- Permitir borrar solo una rutina específica, no necesariamente todas.
+- Permitir duplicar una rutina a otro día.
+- Permitir agregar o quitar ejercicios de una rutina existente.
+- Permitir cambiar el orden de los ejercicios dentro de una rutina.
+- Mostrar mejor la estructura de una rutina guardada (por ejemplo, con separadores claros o formato más legible).
+
+## 3. Entrenamientos
+- Permitir registrar ejercicios que no estaban en la rutina.
+
+## 4. Historial y progreso
+- Mostrar progreso semanal o mensual.
+- Mostrar cuántas veces entrenaste por día/semana/mes.
+- Mostrar el “mejor registro” de un ejercicio (peso o repeticiones máximas).
+- Permitir filtrar entrenamientos por ejercicio, día o rango de fechas.
+- Mostrar comparaciones entre entrenamientos recientes.
+
+## 5. Recordatorios y motivación
+- Enviar recordatorios cuando corresponda según la rutina del usuario.
+- Recordar “hoy toca entrenar” según el día del calendario.
+- Mostrar logros simples, por ejemplo: “completaste 5 entrenamientos esta semana”.
+
+## 6. Comandos y navegación
+- Crear un menú principal más completo y visual.
+- Agregar botones de navegación para moverse entre secciones.
+- Hacer que ciertos comandos sugieran el siguiente paso automáticamente.
+- Crear comandos más específicos para consultas rápidas.
+
+## 7. Calidad de datos y estabilidad
+- Agregar validaciones más robustas al ingresar ejercicios, series y pesos.
+- Mejorar mensajes de error para que sean más claros.
+- Manejar mejor casos límite, por ejemplo, rutinas vacías o ejercicios sin datos.
+- Asegurar que los datos se muestren correctamente cuando hay muchos entrenamientos.
+
+## 8. Ideas de valor agregado
+- Sugerir ejercicios o rutinas según el objetivo del usuario.
+- Permitir objetivos personalizados, por ejemplo: “ganar masa”, “bajar grasa”, “mejorar fuerza”.
+- Integrar métricas simples de progreso físico.
+- Permitir cargar fotos o comentarios en un entrenamiento.
+- Añadir soporte para otros tipos de ejercicios o modalidades.
